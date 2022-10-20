@@ -1,5 +1,6 @@
 # from http.client import HTTPException
-from collections import UserList
+import datetime
+from email.policy import default
 import uuid
 from app.exceptions.exceptio import InsuffiiantAmount, MaxAmount
 from .model import Base
@@ -7,6 +8,8 @@ from sqlalchemy import Column, TIMESTAMP, String, DECIMAL, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
+
+from sqlalchemy.sql import func
 
 
 class Account(Base):
@@ -16,14 +19,14 @@ class Account(Base):
         'users.id', ondelete='CASCADE'), nullable=False)
     available_balance = Column(DECIMAL, nullable=False, default=0)
     active = Column(Boolean, nullable=False, server_default="false")
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default="now()")
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default="now()")
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False,default=datetime.datetime.utcnow)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.now)
     
     transactions = relationship("Transaction", uselist=True)
     
     
     def withdraw(self, amount):
-        if amount > self.available_balance and amount == 0:
+        if amount > self.available_balance or amount == 0:
             raise InsuffiiantAmount('Insufficient amount')
         else:
             self.available_balance -= amount
@@ -38,7 +41,7 @@ class Account(Base):
         
         
     def transfer(self, amount, destination):
-        if amount > self.available_balance and amount == 0:
+        if amount > self.available_balance or amount == 0:
             raise InsuffiiantAmount('Insufficient amount')
         else:
             self.withdraw(amount=amount)

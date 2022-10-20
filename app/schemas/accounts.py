@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import Union
 
-from app.schemas.transaction import TransactionResponse
+from app.schemas.transaction import TransactionBase
 # from app.schemas import users
 
 
@@ -15,9 +15,8 @@ class AccountBase(BaseModel):
         orm_mode = True
 
 
-class CreateAccount(AccountBase):
+class CreateAccount(BaseModel):
     active: bool = False
-    pass
 
 
 # class UserBase(BaseModel):
@@ -41,7 +40,7 @@ class UserAccountResponse(AccountBase):
     active: bool = False
     created_at: Union[datetime, None] = None
     updated_at: Union[datetime, None] = None
-    transactions: List[TransactionResponse] = []
+    # transactions: List[TransactionResponse] = []
 
 
 class Withdraw(BaseModel):
@@ -50,6 +49,7 @@ class Withdraw(BaseModel):
 class DepositResponse(BaseModel):
     message: str
     account: UserAccountResponse
+    transaction: TransactionBase
    
     
     

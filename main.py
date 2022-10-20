@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 import inspect, re
 
 from app.config import settings
-from app.controllers import user, auth, account
+from app.controllers import user, auth, account, transaction
 
 app = FastAPI()
 
@@ -48,6 +48,7 @@ async def root():
 app.include_router(user.router, prefix="/api/v1/user", tags=["User"], )
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"], )
 app.include_router(account.router, prefix="/api/v1/account", tags=["Account"], )
+app.include_router(transaction.router, prefix="/api/v1/transaction", tags=["Transaction"], )
 
 
 

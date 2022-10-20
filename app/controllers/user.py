@@ -20,11 +20,13 @@ def get_current_user(db: Session = Depends(get_db), user_id: str = Depends(jwt.c
 
 @router.put("/{user_id}", response_model=SingleUser)
 def update_user(payload: UpdateUser, user_id: str, db: Session = Depends(get_db)):
-    user = db.query(users.User).filter_by(id=user_id).first()
-    
-    user.update(payload)
-    user.save(db)
+    user = db.query(users.User).filter_by(id=user_id)\
+    .update({users.User.first_name: payload.first_name, 
+                users.User.last_name: payload.last_name}, synchronize_session=False)
+    db.commit()
+    user = db.query(users.User).get(user_id)
     return user
+
 
 @router.get("s", response_model=PaginationUserSchema)
 def get_users(db: Session = Depends(get_db), name: Union[str, None]= None, 

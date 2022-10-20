@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List
-import uuid
+import secrets
 
 from app.exceptions.exceptio import InsuffiiantAmount, MaxAmount
 from ..schemas import accounts
@@ -22,62 +22,68 @@ def create_account(user_account: accounts.CreateAccount, db: Session = Depends(g
     if user_has_account:
         return JSONResponse(status_code=status.HTTP_409_CONFLICT,
                             content={"message": "account generated"})
-    user_account.user_id = uuid.UUID(owner_id)
+    # user_account.user_id = uuid.UUID(owner_id)
     user_account.active = True
-    new_account = account.Account(**user_account.dict())
+    new_account = account.Account(user_id=owner_id ,**user_account.dict())
     db.add(new_account)
     db.commit()
     db.refresh(new_account)
     return new_account
 
 
-@router.post("/withdraw", status_code=status.HTTP_200_OK, operation_id="jwt_optional")
+@router.post("/withdraw", response_model=accounts.DepositResponse,  status_code=status.HTTP_200_OK, operation_id="jwt_optional")
 def withdraw(user_account: accounts.Withdraw, db: Session = Depends(get_db),
              owner_id: str = Depends(current_user)):
     get_account = db.query(account.Account).filter_by(user_id=owner_id).first()
     try:
         get_account.withdraw(user_account.amount)
         get_account.save(db)
-        transaction.Transaction(
+        get_account.transactions.append(transaction.Transaction(
             amount=user_account.amount,
             user_id=owner_id,
-            account_id=get_account.id,
+            # account_id=get_account.id,
             status="success",
             transaction_type="withdrawal",
+            reference=secrets.token_hex(16).upper()
             
-        )
+        ))
+        db.commit()
+        # trxn.save(db)
         
-    except InsuffiiantAmount as e:
+    except Exception as e:
         
         return JSONResponse(status_code=403,
-                        content={"message": e.message}
+                        content={"message": str(e)}
                         )
    
     return {"message": "Withdrawal success", "account": get_account}
 
 
-@router.post("/deposit", response_model=accounts.DepositResponse, status_code=status.HTTP_200_OK, operation_id="fresh_jwt_required")
+@router.post("/deposit", response_model=accounts.DepositResponse,  status_code=status.HTTP_200_OK, operation_id="fresh_jwt_required")
 def deposit(user_account: accounts.Withdraw, db: Session = Depends(get_db),
              owner_id: str = Depends(current_user)):
     get_account = db.query(account.Account).filter_by(user_id=owner_id).first()
     
     try:
         get_account.deposit(user_account.amount)
-        get_account.save(db)
-        trxn =  transaction.Transaction(
+     
+        trxn = transaction.Transaction(
             amount=user_account.amount,
             user_id=owner_id,
             account_id=get_account.id,
-            status='success',
-            transaction_type='desposit',
+            status="success",
+            transaction_type="deposit",
+            reference=secrets.token_hex(16).upper()
             
         )
+        get_account.save(db)
         trxn.save(db)
-    except MaxAmount as e:
+    except Exception as e:
          return JSONResponse(status_code=403,
-                        content={"message": e.message}
+                        content={"message": str(e)}
                         )
-    return {"message": "Deposit success", "account": get_account}
+    
+    return {"message": "Deposit success",  "account": get_account ,"transaction": trxn,  }
 
 
 @router.post("/transfer", status_code=status.HTTP_200_OK, operation_id="jwt_fresh_token_required")
@@ -92,19 +98,20 @@ def transfer(user_account: accounts.Transfer, db: Session = Depends(get_db),
     try:
         get_account.transfer(user_account.amount, destination)
         get_account.save(db)
-        transaction.Transaction(
+        trxn = get_account.transactions.append(transaction.Transaction(
             amount=user_account.amount,
             user_id=owner_id,
             account_id=get_account.id,
             status="success",
             transaction_type="transfer",
             
-        )
-    except InsuffiiantAmount as e:
+        ))
+        trxn.save(db)
+    except Exception as e:
          return JSONResponse(status_code=403,
-                        content={"message": e.message}
+                        content={"message": str(e)}
                         )
-    return {"message": "Transfer success", "account": get_account}
+    return {"message": "Transfer success", "account": get_account, "transaction": trxn}
 
    
 
